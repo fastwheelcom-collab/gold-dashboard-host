@@ -1,0 +1,1414 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>XAUUSD Trading Dashboard</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+:root{
+  --bg:#f8fafb;--bg2:#ffffff;--bg3:#f0f7f0;
+  --gold:#22c55e;--gold2:#16a34a;
+  --green:#22c55e;--red:#ef4444;--blue:#3b82f6;
+  --text:#111827;--muted:#9ca3af;--border:#d1fae5;
+}
+body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,sans-serif;min-height:100vh;padding:12px;max-width:1400px;margin:0 auto;}
+
+/* SCROLLBAR */
+::-webkit-scrollbar{width:4px;}
+::-webkit-scrollbar-track{background:#f0f7f0;}
+::-webkit-scrollbar-thumb{background:#86efac;}
+
+/* ANIMATIONS */
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.2}}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@keyframes glow{0%,100%{box-shadow:0 2px 12px #22c55e33}50%{box-shadow:0 4px 24px #22c55e55}}
+@keyframes flashGreen{0%,100%{color:var(--text)}50%{color:var(--green)}}
+@keyframes flashRed{0%,100%{color:var(--text)}50%{color:var(--red)}}
+@keyframes alertPulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.85;transform:scale(1.01)}}
+
+.up{color:var(--green);}
+.down{color:var(--red);}
+.neutral{color:var(--gold);}
+.blue{color:var(--blue);}
+
+/* ── HEADER ── */
+.header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;padding:12px 16px;background:var(--bg2);border:1px solid var(--border);border-radius:14px;}
+.header-left{display:flex;align-items:center;gap:12px;}
+.logo{font-size:22px;font-weight:900;color:#16a34a;letter-spacing:3px;}
+.logo span{color:#111827;font-weight:300;}
+.live-badge{display:flex;align-items:center;gap:5px;background:#dcfce7;border:1px solid #86efac;border-radius:20px;padding:4px 10px;font-size:10px;color:#16a34a;font-weight:700;}
+.dot{width:6px;height:6px;background:var(--green);border-radius:50%;animation:pulse 1.5s infinite;}
+.header-right{display:flex;align-items:center;gap:16px;}
+.clock-wrap{text-align:right;}
+.clock-time{font-size:18px;font-weight:800;color:#16a34a;font-variant-numeric:tabular-nums;}
+.clock-date{font-size:10px;color:#9ca3af;}
+
+/* ── ALERT BANNER ── */
+.alert-banner{border-radius:12px;padding:14px 18px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;gap:12px;animation:alertPulse 2s infinite;cursor:pointer;}
+.alert-banner.bull{background:linear-gradient(135deg,#f0fdf4,#dcfce7);border:2px solid #22c55e;}
+.alert-banner.bear{background:linear-gradient(135deg,#fff5f5,#fee2e2);border:2px solid #ef4444;}
+.alert-banner.neutral{background:linear-gradient(135deg,#fffbeb,#fef3c7);border:2px solid #f59e0b;}
+.alert-icon{font-size:32px;}
+.alert-text{}
+.alert-direction{font-size:24px;font-weight:900;letter-spacing:3px;}
+.alert-reason{font-size:12px;color:#374151;margin-top:3px;}
+.alert-badges{display:flex;gap:8px;flex-wrap:wrap;}
+.badge{font-size:10px;padding:4px 12px;border-radius:20px;font-weight:700;letter-spacing:.5px;}
+.b-bull{background:#dcfce7;color:#16a34a;border:1px solid #86efac;}
+.b-bear{background:#fee2e2;color:#dc2626;border:1px solid #fca5a5;}
+.b-neu{background:#fef3c7;color:#b45309;border:1px solid #fcd34d;}
+.b-blue{background:#dbeafe;color:#1d4ed8;border:1px solid #93c5fd;}
+
+/* ── PRICE ROW ── */
+.price-row{display:grid;grid-template-columns:1fr 1fr 1fr 1fr 1fr;gap:10px;margin-bottom:14px;}
+.price-card{background:var(--bg2);border:1px solid #e5e7eb;border-radius:12px;padding:12px 14px;text-align:center;box-shadow:0 1px 6px rgba(0,0,0,.06);}
+.price-card.main{border-color:#22c55e;background:linear-gradient(135deg,#f0fdf4,#dcfce7);animation:glow 3s infinite;}
+.pc-lbl{font-size:9px;color:#9ca3af;text-transform:uppercase;letter-spacing:1px;}
+.pc-val{font-size:13px;font-weight:800;margin-top:4px;color:#111827;}
+.pc-val.big{font-size:32px;color:#16a34a;}
+
+/* ── SESSIONS ── */
+.sessions{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px;}
+.sess{background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:10px;text-align:center;transition:.3s;box-shadow:0 1px 4px rgba(0,0,0,.05);}
+.sess.active{border-color:#22c55e;background:#f0fdf4;}
+.sess.overlap{border-color:#3b82f6;background:#eff6ff;}
+.sess-name{font-size:10px;color:#6b7280;text-transform:uppercase;letter-spacing:1px;}
+.sess-time{font-size:11px;color:#9ca3af;margin-top:3px;}
+.sess-tag{font-size:11px;font-weight:800;margin-top:4px;}
+.sess.active .sess-tag{color:#16a34a;}
+.sess.overlap .sess-tag{color:#1d4ed8;}
+.sess:not(.active):not(.overlap) .sess-tag{color:#d1d5db;}
+.sess-vol{font-size:9px;color:#9ca3af;margin-top:2px;}
+
+/* ── CHART ── */
+.chart-wrap{background:#fff;border:1px solid #e5e7eb;border-radius:14px;overflow:hidden;margin-bottom:14px;box-shadow:0 2px 12px rgba(0,0,0,.07);}
+.chart-header{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid #f0fdf4;background:#f8fafb;}
+.chart-title{font-size:12px;color:#16a34a;font-weight:700;}
+.tf-btns{display:flex;gap:5px;}
+.tf-btn{background:#f0fdf4;border:1px solid #bbf7d0;color:#6b7280;font-size:10px;padding:4px 12px;border-radius:20px;cursor:pointer;font-weight:700;transition:.2s;}
+.tf-btn:hover{border-color:#22c55e;color:#16a34a;}
+.tf-btn.active{background:#22c55e;color:#fff;border-color:#22c55e;}
+
+/* ── MAIN GRID ── */
+.main-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;}
+.card{background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:14px;box-shadow:0 1px 6px rgba(0,0,0,.06);}
+.card-title{font-size:10px;color:#16a34a;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:12px;display:flex;align-items:center;gap:6px;font-weight:800;}
+.card-title-icon{font-size:14px;}
+
+/* TRADE SETUP CARDS */
+.setup-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;}
+.setup-card{border-radius:14px;padding:16px;border:2px solid;}
+.setup-card.buy{background:#ffffff;border-color:#22c55e;}
+.setup-card.sell{background:#ffffff;border-color:#ef4444;}
+.setup-head{font-size:22px;font-weight:900;letter-spacing:3px;margin-bottom:12px;}
+.setup-card.buy .setup-head{color:#16a34a;}
+.setup-card.sell .setup-head{color:#dc2626;}
+.srow{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f3f4f6;font-size:12px;}
+.srow:last-of-type{border-bottom:none;}
+.sl{color:#6b7280;font-weight:500;}
+.sv{font-weight:700;color:#111827;}
+.setup-card.buy .sv{color:#16a34a;}
+.setup-card.sell .sv{color:#dc2626;}
+.confidence-bar{margin-top:10px;}
+.conf-lbl{font-size:9px;color:#6b7280;text-transform:uppercase;margin-bottom:4px;}
+.conf-track{height:6px;background:#e5e7eb;border-radius:3px;overflow:hidden;}
+.conf-fill{height:100%;border-radius:3px;transition:width .5s;}
+.buy .conf-fill{background:var(--green);}
+.sell .conf-fill{background:var(--red);}
+
+/* INDICATOR ROWS */
+.ind-row{display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid #f3f4f6;font-size:12px;}
+.ind-row:last-child{border-bottom:none;}
+.ind-lbl{color:#6b7280;}
+.ind-tag{font-size:10px;padding:2px 10px;border-radius:10px;font-weight:700;}
+.tag-bull{background:#dcfce7;color:#16a34a;border:1px solid #86efac;}
+.tag-bear{background:#fee2e2;color:#dc2626;border:1px solid #fca5a5;}
+.tag-neu{background:#fef3c7;color:#b45309;border:1px solid #fcd34d;}
+
+/* LEVELS */
+.lvl-row{display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid #f3f4f6;font-size:12px;}
+.lvl-row:last-child{border-bottom:none;}
+.lvl-name{color:#6b7280;}
+.lvl-price{font-weight:800;}
+.lvl-tag{font-size:9px;padding:2px 8px;border-radius:8px;font-weight:700;}
+.lt-res{background:#fee2e2;color:#dc2626;border:1px solid #fca5a5;}
+.lt-sup{background:#dcfce7;color:#16a34a;border:1px solid #86efac;}
+.lt-now{background:#dbeafe;color:#1d4ed8;border:1px solid #93c5fd;}
+
+/* MARKET MOOD */
+.mood-wrap{background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:16px;margin-bottom:14px;box-shadow:0 1px 6px rgba(0,0,0,.06);}
+.mood-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-top:12px;}
+.mood-item{background:#ffffff;border:1px solid #e5e7eb;border-radius:10px;padding:12px;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,.05);}
+.mood-lbl{font-size:9px;color:#9ca3af;text-transform:uppercase;letter-spacing:1px;}
+.mood-val{font-size:20px;font-weight:900;margin-top:4px;color:#111827;}
+.mood-sub{font-size:10px;color:#9ca3af;margin-top:2px;}
+
+/* SENTIMENT BAR */
+.sent-bar-wrap{height:34px;border-radius:17px;overflow:hidden;display:flex;margin:10px 0;box-shadow:0 2px 8px rgba(0,0,0,.08);}
+.sent-buy{background:linear-gradient(90deg,#00cc66,var(--green));display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:900;color:#000;transition:width .5s;}
+.sent-sell{background:linear-gradient(90deg,var(--red),#cc0000);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:900;color:#fff;transition:width .5s;}
+.sent-row{display:flex;justify-content:space-between;font-size:12px;margin-top:6px;}
+.sent-note{font-size:11px;color:#6b7280;margin-top:8px;line-height:1.5;}
+
+/* ALERT POPUP */
+.alert-popup{position:fixed;top:20px;right:20px;z-index:999;max-width:320px;border-radius:14px;padding:16px;border:2px solid;box-shadow:0 8px 32px rgba(0,0,0,.6);animation:fadeIn .3s ease;display:none;}
+.alert-popup.show{display:block;}
+.alert-popup.bull{background:#f0fdf4;border-color:#22c55e;}
+.alert-popup.bear{background:#fff5f5;border-color:#ef4444;}
+.alert-popup.warn{background:#fffbeb;border-color:#f59e0b;}
+.ap-title{font-size:14px;font-weight:900;letter-spacing:2px;}
+.ap-msg{font-size:12px;color:#374151;margin-top:6px;line-height:1.5;}
+.ap-time{font-size:10px;color:var(--muted);margin-top:8px;}
+.ap-close{position:absolute;top:10px;right:12px;cursor:pointer;color:var(--muted);font-size:16px;}
+
+/* BOTTOM STATS */
+.stats-row{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:14px;}
+.stat-card{background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:12px;text-align:center;box-shadow:0 1px 6px rgba(0,0,0,.06);}
+.stat-lbl{font-size:9px;color:#9ca3af;text-transform:uppercase;letter-spacing:1px;}
+.stat-val{font-size:16px;font-weight:900;margin-top:4px;color:#111827;}
+.stat-sub{font-size:9px;color:#9ca3af;margin-top:2px;}
+
+/* FOOTER */
+.footer{text-align:center;font-size:10px;color:var(--muted);margin-top:14px;padding-top:12px;border-top:1px solid var(--border);}
+.refresh-btn{background:#22c55e;color:#fff;border:none;border-radius:20px;padding:8px 24px;font-weight:900;font-size:11px;cursor:pointer;margin-top:10px;letter-spacing:1px;transition:.2s;box-shadow:0 2px 8px #22c55e40;}
+.refresh-btn:hover{background:#16a34a;}
+.last-upd{font-size:10px;color:var(--muted);margin-top:6px;}
+</style>
+</head>
+<body>
+
+<!-- ALERT POPUP -->
+<div class="alert-popup" id="alertPopup">
+  <span class="ap-close" onclick="closeAlert()">✕</span>
+  <div class="ap-title" id="apTitle">ALERT</div>
+  <div class="ap-msg" id="apMsg"></div>
+  <div class="ap-time" id="apTime"></div>
+</div>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="header-left">
+    <div class="logo">⚡ XAUUSD <span>DASHBOARD</span></div>
+    <div class="live-badge"><span class="dot"></span>LIVE</div>
+  </div>
+  <div class="header-right">
+    <div class="clock-wrap">
+      <div class="clock-time" id="clock">--:--:--</div>
+      <div class="clock-date" id="clock-date">Dubai Time</div>
+    </div>
+  </div>
+</div>
+
+<!-- ⚡ MAIN ALERT BANNER — Trade Direction -->
+<div class="alert-banner bull" id="alertBanner" onclick="toggleBannerDetail()">
+  <div class="alert-icon" id="alertIcon">📈</div>
+  <div class="alert-text" style="flex:1">
+    <div class="alert-direction up" id="alertDirection">ANALYZING MARKET...</div>
+    <div class="alert-reason" id="alertReason">Fetching live data — please wait</div>
+  </div>
+  <div class="alert-badges" id="alertBadges">
+    <span class="badge b-neu">Loading</span>
+  </div>
+</div>
+
+<!-- PRICE ROW -->
+<div class="price-row">
+  <div class="price-card main">
+    <div class="pc-lbl">Gold Price</div>
+    <div class="pc-val big" id="price-main">$---.--</div>
+    <div class="pc-val" id="price-chg" style="font-size:12px;margin-top:4px;">Loading...</div>
+  </div>
+  <div class="price-card">
+    <div class="pc-lbl">Day High</div>
+    <div class="pc-val up" id="day-high">$---</div>
+    <div style="font-size:9px;color:var(--muted);margin-top:4px;">Resistance zone</div>
+  </div>
+  <div class="price-card">
+    <div class="pc-lbl">Day Low</div>
+    <div class="pc-val down" id="day-low">$---</div>
+    <div style="font-size:9px;color:var(--muted);margin-top:4px;">Support zone</div>
+  </div>
+  <div class="price-card">
+    <div class="pc-lbl">Day Range</div>
+    <div class="pc-val neutral" id="day-range">$---</div>
+    <div style="font-size:9px;color:var(--muted);margin-top:4px;">Volatility</div>
+  </div>
+  <div class="price-card">
+    <div class="pc-lbl">Prev Close</div>
+    <div class="pc-val" id="prev-close">$---</div>
+    <div style="font-size:9px;color:var(--muted);margin-top:4px;">Yesterday</div>
+  </div>
+</div>
+
+<!-- SESSIONS -->
+<div class="sessions">
+  <div class="sess" id="sess-sydney">
+    <div class="sess-name">🦘 Sydney</div>
+    <div class="sess-time">22:00 – 07:00</div>
+    <div class="sess-tag" id="st-sydney">CLOSED</div>
+    <div class="sess-vol">Low Volume</div>
+  </div>
+  <div class="sess" id="sess-tokyo">
+    <div class="sess-name">🗾 Tokyo</div>
+    <div class="sess-time">03:00 – 12:00</div>
+    <div class="sess-tag" id="st-tokyo">CLOSED</div>
+    <div class="sess-vol">Med Volume</div>
+  </div>
+  <div class="sess" id="sess-london">
+    <div class="sess-name">🇬🇧 London</div>
+    <div class="sess-time">11:00 – 19:00</div>
+    <div class="sess-tag" id="st-london">CLOSED</div>
+    <div class="sess-vol">High Volume ⚡</div>
+  </div>
+  <div class="sess" id="sess-ny">
+    <div class="sess-name">🗽 New York</div>
+    <div class="sess-time">16:00 – 01:00</div>
+    <div class="sess-tag" id="st-ny">CLOSED</div>
+    <div class="sess-vol">High Volume ⚡</div>
+  </div>
+</div>
+
+<!-- CHART -->
+<div class="chart-wrap">
+  <div class="chart-header">
+    <div class="chart-title">📊 LIVE XAUUSD Chart</div>
+    <div class="tf-btns">
+      <button class="tf-btn" onclick="setTF('1',this)">M1</button>
+      <button class="tf-btn" onclick="setTF('5',this)">M5</button>
+      <button class="tf-btn active" onclick="setTF('15',this)">M15</button>
+      <button class="tf-btn" onclick="setTF('60',this)">H1</button>
+      <button class="tf-btn" onclick="setTF('240',this)">H4</button>
+      <button class="tf-btn" onclick="setTF('D',this)">D1</button>
+    </div>
+  </div>
+  <div class="tradingview-widget-container" style="height:460px;width:100%">
+    <div id="tradingview_chart" style="height:100%;width:100%"></div>
+    <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
+    <script type="text/javascript">
+    var tvWidget;
+    function initTV(interval){
+      if(tvWidget){try{tvWidget.remove();}catch(e){}}
+      tvWidget = new TradingView.widget({
+        autosize:true, symbol:"OANDA:XAUUSD", interval:interval||"15",
+        timezone:"Asia/Dubai", theme:"light", style:"1", locale:"en",
+        toolbar_bg:"#ffffff", enable_publishing:false,
+        hide_top_toolbar:false, hide_legend:false, save_image:false,
+        container_id:"tradingview_chart",
+        studies:["RSI@tv-basicstudies","MACD@tv-basicstudies","EMA@tv-basicstudies"],
+        show_popup_button:true
+      });
+    }
+    function setTF(tf,btn){
+      document.querySelectorAll('.tf-btn').forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active');
+      initTV(tf);
+    }
+    initTV('15');
+    </script>
+  </div>
+</div>
+
+<!-- MARKET MOOD -->
+<div class="mood-wrap">
+  <div class="card-title"><span class="card-title-icon">🧠</span> Market Mood & Sentiment</div>
+  <div class="mood-row">
+    <div class="mood-item">
+      <div class="mood-lbl">Trend Bias</div>
+      <div class="mood-val up" id="mood-trend">BULL</div>
+      <div class="mood-sub">Based on price action</div>
+    </div>
+    <div class="mood-item">
+      <div class="mood-lbl">Volatility</div>
+      <div class="mood-val neutral" id="mood-vol">MED</div>
+      <div class="mood-sub" id="mood-vol-sub">Day range loading...</div>
+    </div>
+    <div class="mood-item">
+      <div class="mood-lbl">Session Power</div>
+      <div class="mood-val" id="mood-sess">--</div>
+      <div class="mood-sub" id="mood-sess-sub">Checking sessions...</div>
+    </div>
+  </div>
+
+  <!-- SENTIMENT BAR -->
+  <div style="margin-top:14px;">
+    <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">Retail Trader Sentiment</div>
+    <div class="sent-bar-wrap">
+      <div class="sent-buy" id="sent-buy-bar" style="width:62%">62% LONG</div>
+      <div class="sent-sell" id="sent-sell-bar" style="width:38%">38% SHORT</div>
+    </div>
+    <div class="sent-row">
+      <span class="up">🟢 Longs: 62%</span>
+      <span class="down">🔴 Shorts: 38%</span>
+    </div>
+    <div class="sent-note" id="sent-note">⚠️ Retail majority is LONG — smart money often fades retail. Stay cautious at resistance zones.</div>
+  </div>
+</div>
+
+<!-- BUY/SELL SETUPS + TECHNICALS -->
+<div class="setup-grid">
+  <div class="setup-card buy">
+    <div class="setup-head">▲ BUY SETUP</div>
+    <div class="srow"><span class="sl">Entry Zone</span><span class="sv" id="buy-entry">$4,320 – $4,340</span></div>
+    <div class="srow"><span class="sl">Stop Loss</span><span class="sv" id="buy-sl">$4,295</span></div>
+    <div class="srow"><span class="sl">Take Profit 1</span><span class="sv" id="buy-tp1">$4,390</span></div>
+    <div class="srow"><span class="sl">Take Profit 2</span><span class="sv" id="buy-tp2">$4,450</span></div>
+    <div class="srow"><span class="sl">Risk : Reward</span><span class="sv">1 : 2.5</span></div>
+    <div class="srow"><span class="sl">Best Time</span><span class="sv">London / NY Open</span></div>
+    <div class="confidence-bar">
+      <div class="conf-lbl">Confidence: HIGH (80%)</div>
+      <div class="conf-track"><div class="conf-fill buy" style="width:80%"></div></div>
+    </div>
+  </div>
+  <div class="setup-card sell">
+    <div class="setup-head">▼ SELL SETUP</div>
+    <div class="srow"><span class="sl">Entry Zone</span><span class="sv" id="sell-entry">$4,400 – $4,430</span></div>
+    <div class="srow"><span class="sl">Stop Loss</span><span class="sv" id="sell-sl">$4,460</span></div>
+    <div class="srow"><span class="sl">Take Profit 1</span><span class="sv" id="sell-tp1">$4,330</span></div>
+    <div class="srow"><span class="sl">Take Profit 2</span><span class="sv" id="sell-tp2">$4,260</span></div>
+    <div class="srow"><span class="sl">Risk : Reward</span><span class="sv">1 : 2.0</span></div>
+    <div class="srow"><span class="sl">Best Time</span><span class="sv">NY Session</span></div>
+    <div class="confidence-bar">
+      <div class="conf-lbl">Confidence: MEDIUM (55%)</div>
+      <div class="conf-track"><div class="conf-fill sell" style="width:55%"></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- INDICATORS + LEVELS -->
+<div class="main-grid">
+  <div class="card">
+    <div class="card-title"><span class="card-title-icon">📉</span> Technical Indicators</div>
+    <div class="ind-row"><span class="ind-lbl">RSI (14)</span><span class="ind-tag tag-bull" id="ind-rsi">Bullish</span></div>
+    <div class="ind-row"><span class="ind-lbl">MACD</span><span class="ind-tag tag-bull">Bullish Cross</span></div>
+    <div class="ind-row"><span class="ind-lbl">EMA 8 / 21</span><span class="ind-tag tag-bull">EMA8 above EMA21</span></div>
+    <div class="ind-row"><span class="ind-lbl">Bollinger Bands</span><span class="ind-tag tag-neu">Mid-Upper Band</span></div>
+    <div class="ind-row"><span class="ind-lbl">ADX Trend</span><span class="ind-tag tag-bull">Strong Trend</span></div>
+    <div class="ind-row"><span class="ind-lbl">200 EMA</span><span class="ind-tag tag-bull">Price Above</span></div>
+    <div class="ind-row"><span class="ind-lbl">Overall Signal</span><span class="ind-tag tag-bull" style="font-size:12px;padding:4px 14px;">BULLISH ✅</span></div>
+  </div>
+  <div class="card">
+    <div class="card-title"><span class="card-title-icon">📍</span> Key Price Levels</div>
+    <div class="lvl-row"><span class="lvl-name">ATH / Major Res</span><span class="lvl-price down">$4,500</span><span class="lvl-tag lt-res">STRONG RES</span></div>
+    <div class="lvl-row"><span class="lvl-name">Resistance 1</span><span class="lvl-price down">$4,430</span><span class="lvl-tag lt-res">SELL ZONE</span></div>
+    <div class="lvl-row"><span class="lvl-name">Resistance 2</span><span class="lvl-price down">$4,400</span><span class="lvl-tag lt-res">RESISTANCE</span></div>
+    <div class="lvl-row"><span class="lvl-name">◉ Current Price</span><span class="lvl-price neutral" id="lvl-current">$4,375</span><span class="lvl-tag lt-now">YOU ARE HERE</span></div>
+    <div class="lvl-row"><span class="lvl-name">Support 1</span><span class="lvl-price up">$4,320</span><span class="lvl-tag lt-sup">BUY ZONE</span></div>
+    <div class="lvl-row"><span class="lvl-name">Support 2</span><span class="lvl-price up">$4,260</span><span class="lvl-tag lt-sup">STRONG SUP</span></div>
+    <div class="lvl-row"><span class="lvl-name">Major Support</span><span class="lvl-price up">$4,100</span><span class="lvl-tag lt-sup">KEY LEVEL</span></div>
+  </div>
+</div>
+
+<!-- TOM'S ASSISTANT PANEL -->
+<div id="assistant-panel" style="background:#fff;border:2px solid #22c55e;border-radius:16px;padding:20px;margin-bottom:14px;box-shadow:0 4px 20px rgba(34,197,94,.15);">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+    <div style="display:flex;align-items:center;gap:10px;">
+      <div style="width:40px;height:40px;background:linear-gradient(135deg,#22c55e,#16a34a);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:20px;">🤖</div>
+      <div>
+        <div style="font-size:15px;font-weight:900;color:#111827;letter-spacing:1px;">TOM — Trading Assistant</div>
+        <div style="font-size:10px;color:#9ca3af;">Real-time recommendation based on market conditions</div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:6px;background:#dcfce7;border:1px solid #86efac;border-radius:20px;padding:5px 12px;">
+      <div style="width:6px;height:6px;background:#22c55e;border-radius:50%;animation:pulse 1.5s infinite;"></div>
+      <span style="font-size:10px;color:#16a34a;font-weight:700;">LIVE ANALYSIS</span>
+    </div>
+  </div>
+
+  <!-- MAIN RECOMMENDATION -->
+  <div id="tom-rec" style="border-radius:12px;padding:16px;margin-bottom:14px;background:#f0fdf4;border:1px solid #86efac;">
+    <div style="font-size:11px;color:#9ca3af;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">My Recommendation</div>
+    <div id="tom-action" style="font-size:26px;font-weight:900;color:#16a34a;letter-spacing:2px;">Analyzing...</div>
+    <div id="tom-reason" style="font-size:13px;color:#374151;margin-top:6px;line-height:1.6;">Fetching live price data...</div>
+  </div>
+
+  <!-- CHECKLIST -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;">
+    <div style="background:#f8fafb;border:1px solid #e5e7eb;border-radius:10px;padding:12px;">
+      <div style="font-size:10px;color:#16a34a;font-weight:800;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">✅ Before You Trade</div>
+      <div id="tom-checklist" style="font-size:12px;color:#374151;line-height:2;">Loading...</div>
+    </div>
+    <div style="background:#f8fafb;border:1px solid #e5e7eb;border-radius:10px;padding:12px;">
+      <div style="font-size:10px;color:#dc2626;font-weight:800;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">⚠️ Watch Out For</div>
+      <div id="tom-warnings" style="font-size:12px;color:#374151;line-height:2;">Loading...</div>
+    </div>
+  </div>
+
+  <!-- QUICK LEVELS -->
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;">
+    <div style="background:#dcfce7;border-radius:10px;padding:10px;text-align:center;">
+      <div style="font-size:9px;color:#6b7280;text-transform:uppercase;">Buy Zone</div>
+      <div id="tom-buy-zone" style="font-size:14px;font-weight:900;color:#16a34a;margin-top:3px;">---</div>
+    </div>
+    <div style="background:#fee2e2;border-radius:10px;padding:10px;text-align:center;">
+      <div style="font-size:9px;color:#6b7280;text-transform:uppercase;">Sell Zone</div>
+      <div id="tom-sell-zone" style="font-size:14px;font-weight:900;color:#dc2626;margin-top:3px;">---</div>
+    </div>
+    <div style="background:#fef9c3;border-radius:10px;padding:10px;text-align:center;">
+      <div style="font-size:9px;color:#6b7280;text-transform:uppercase;">Stop Loss</div>
+      <div id="tom-sl" style="font-size:14px;font-weight:900;color:#b45309;margin-top:3px;">---</div>
+    </div>
+    <div style="background:#dbeafe;border-radius:10px;padding:10px;text-align:center;">
+      <div style="font-size:9px;color:#6b7280;text-transform:uppercase;">Take Profit</div>
+      <div id="tom-tp" style="font-size:14px;font-weight:900;color:#1d4ed8;margin-top:3px;">---</div>
+    </div>
+  </div>
+
+  <!-- AUTO TRADER STATUS BAR -->
+  <div style="margin-top:10px;background:#f0fdf4;border:1px solid #86efac;border-radius:10px;padding:12px 16px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:10px;">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <span style="font-size:20px;">⚡</span>
+        <div>
+          <div style="font-size:12px;font-weight:800;color:#16a34a;">TomDashBot — MT4 Demo | Vantage XAUUSD</div>
+          <div style="font-size:10px;color:#9ca3af;">Every signal = auto trade · SL $30 · TP $60 · Report saved</div>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span id="bot-status-dot" style="width:8px;height:8px;background:#ef4444;border-radius:50%;display:inline-block;"></span>
+        <span id="bot-status-txt" style="font-size:11px;color:#dc2626;font-weight:700;">❌ BOT OFFLINE — Telegram fallback active</span>
+        <button onclick="autoTradeEnabled=!autoTradeEnabled;this.textContent=autoTradeEnabled?'AUTO ON':'AUTO OFF';this.style.background=autoTradeEnabled?'#22c55e':'#ef4444';" style="background:#22c55e;color:#fff;border:none;border-radius:20px;padding:5px 14px;font-size:11px;font-weight:700;cursor:pointer;">AUTO ON</button>
+        <button onclick="fetch(BOT_URL+'/close',{method:'POST'})" style="background:#fee2e2;border:1px solid #fca5a5;color:#dc2626;border-radius:20px;padding:5px 14px;font-size:11px;font-weight:700;cursor:pointer;">CLOSE ALL</button>
+      </div>
+    </div>
+    <!-- LIVE BOT STATS -->
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:8px;">
+      <div style="background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:8px;text-align:center;">
+        <div style="font-size:9px;color:#9ca3af;text-transform:uppercase;">Balance</div>
+        <div id="bot-balance" style="font-size:13px;font-weight:800;color:#111;">--</div>
+      </div>
+      <div style="background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:8px;text-align:center;">
+        <div style="font-size:9px;color:#9ca3af;text-transform:uppercase;">Open</div>
+        <div id="bot-open" style="font-size:13px;font-weight:800;color:#111;">--</div>
+      </div>
+      <div style="background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:8px;text-align:center;">
+        <div style="font-size:9px;color:#9ca3af;text-transform:uppercase;">Accuracy</div>
+        <div id="bot-accuracy" style="font-size:13px;font-weight:800;color:#1d4ed8;">--%</div>
+      </div>
+      <div style="background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:8px;text-align:center;">
+        <div style="font-size:9px;color:#9ca3af;text-transform:uppercase;">Total P&L</div>
+        <div id="bot-pnl" style="font-size:13px;font-weight:800;">$--</div>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;">
+      <div style="background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:8px;text-align:center;">
+        <div style="font-size:9px;color:#9ca3af;text-transform:uppercase;">Total Trades</div>
+        <div id="bot-total" style="font-size:13px;font-weight:800;color:#111;">0</div>
+      </div>
+      <div style="background:#dcfce7;border:1px solid #86efac;border-radius:8px;padding:8px;text-align:center;">
+        <div style="font-size:9px;color:#9ca3af;text-transform:uppercase;">✅ Wins</div>
+        <div id="bot-wins" style="font-size:13px;font-weight:800;color:#16a34a;">0</div>
+      </div>
+      <div style="background:#fee2e2;border:1px solid #fca5a5;border-radius:8px;padding:8px;text-align:center;">
+        <div style="font-size:9px;color:#9ca3af;text-transform:uppercase;">❌ Losses</div>
+        <div id="bot-losses" style="font-size:13px;font-weight:800;color:#dc2626;">0</div>
+      </div>
+      <div style="background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:8px;text-align:center;">
+        <div style="font-size:9px;color:#9ca3af;text-transform:uppercase;">Equity</div>
+        <div id="bot-equity" style="font-size:13px;font-weight:800;color:#111;">--</div>
+      </div>
+    </div>
+    <div style="margin-top:8px;padding:8px 10px;background:#f8fafb;border-radius:8px;font-size:11px;">
+      <span style="color:#9ca3af;">Last Trade: </span>
+      <span id="bot-last-trade" style="font-weight:700;color:#6b7280;">No trades yet</span>
+    </div>
+  </div>
+
+  <!-- TELEGRAM STATUS BAR -->
+  <div style="margin-top:14px;background:#f0f9ff;border:1px solid #bae6fd;border-radius:10px;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
+    <div style="display:flex;align-items:center;gap:10px;">
+      <span style="font-size:20px;">✈️</span>
+      <div>
+        <div style="font-size:12px;font-weight:800;color:#0369a1;">Telegram Alerts — @GoldTomAlert_bot</div>
+        <div style="font-size:10px;color:#9ca3af;">Sends BUY/SELL signals directly to your Telegram · 5min throttle</div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;">
+      <span id="tg-status-dot" style="width:8px;height:8px;background:#22c55e;border-radius:50%;display:inline-block;"></span>
+      <span id="tg-status-txt" style="font-size:11px;color:#16a34a;font-weight:700;">ENABLED</span>
+      <button onclick="toggleTelegram()" id="tg-toggle-btn" style="background:#22c55e;color:#fff;border:none;border-radius:20px;padding:5px 16px;font-size:11px;font-weight:700;cursor:pointer;">ON</button>
+      <button onclick="testTelegram()" style="background:#dbeafe;border:1px solid #93c5fd;color:#1d4ed8;border-radius:20px;padding:5px 16px;font-size:11px;font-weight:700;cursor:pointer;">Test 📨</button>
+    </div>
+  </div>
+  <div style="margin-top:10px;font-size:10px;color:#9ca3af;text-align:center;">⚠️ This is analysis assistance only — always use your own judgment. Not financial advice.</div>
+</div>
+
+<!-- TRADE LOG + ACCURACY TRACKER -->
+<div style="background:#fff;border:2px solid #22c55e;border-radius:16px;padding:20px;margin-bottom:14px;box-shadow:0 4px 20px rgba(34,197,94,.12);">
+
+  <!-- HEADER -->
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px;">
+    <div style="display:flex;align-items:center;gap:10px;">
+      <div style="width:40px;height:40px;background:linear-gradient(135deg,#3b82f6,#1d4ed8);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:20px;">📓</div>
+      <div>
+        <div style="font-size:15px;font-weight:900;color:#111827;letter-spacing:1px;">TRADE LOG — Accuracy Tracker</div>
+        <div style="font-size:10px;color:#9ca3af;">Log your trades · Track Tom's recommendation accuracy</div>
+      </div>
+    </div>
+    <button onclick="clearLog()" style="background:#fee2e2;border:1px solid #fca5a5;color:#dc2626;border-radius:8px;padding:6px 14px;font-size:11px;font-weight:700;cursor:pointer;">🗑 Clear Log</button>
+  </div>
+
+  <!-- ACCURACY STATS -->
+  <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:16px;">
+    <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:12px;text-align:center;">
+      <div style="font-size:9px;color:#9ca3af;text-transform:uppercase;letter-spacing:1px;">Total Calls</div>
+      <div id="log-total" style="font-size:22px;font-weight:900;color:#111827;margin-top:4px;">0</div>
+    </div>
+    <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:10px;padding:12px;text-align:center;">
+      <div style="font-size:9px;color:#9ca3af;text-transform:uppercase;letter-spacing:1px;">✅ Correct</div>
+      <div id="log-correct" style="font-size:22px;font-weight:900;color:#16a34a;margin-top:4px;">0</div>
+    </div>
+    <div style="background:#fff5f5;border:1px solid #fca5a5;border-radius:10px;padding:12px;text-align:center;">
+      <div style="font-size:9px;color:#9ca3af;text-transform:uppercase;letter-spacing:1px;">❌ Wrong</div>
+      <div id="log-wrong" style="font-size:22px;font-weight:900;color:#dc2626;margin-top:4px;">0</div>
+    </div>
+    <div style="background:#fffbeb;border:1px solid #fcd34d;border-radius:10px;padding:12px;text-align:center;">
+      <div style="font-size:9px;color:#9ca3af;text-transform:uppercase;letter-spacing:1px;">⏳ Pending</div>
+      <div id="log-pending" style="font-size:22px;font-weight:900;color:#b45309;margin-top:4px;">0</div>
+    </div>
+    <div style="background:#dbeafe;border:1px solid #93c5fd;border-radius:10px;padding:12px;text-align:center;">
+      <div style="font-size:9px;color:#9ca3af;text-transform:uppercase;letter-spacing:1px;">🎯 Accuracy</div>
+      <div id="log-accuracy" style="font-size:22px;font-weight:900;color:#1d4ed8;margin-top:4px;">--%</div>
+    </div>
+  </div>
+
+  <!-- ACCURACY BAR -->
+  <div style="margin-bottom:16px;">
+    <div style="display:flex;justify-content:space-between;font-size:10px;color:#9ca3af;margin-bottom:4px;">
+      <span>Accuracy Rate</span>
+      <span id="log-acc-pct">No trades yet</span>
+    </div>
+    <div style="height:10px;background:#f3f4f6;border-radius:5px;overflow:hidden;">
+      <div id="log-acc-bar" style="height:100%;width:0%;background:linear-gradient(90deg,#22c55e,#16a34a);border-radius:5px;transition:width .5s;"></div>
+    </div>
+  </div>
+
+  <!-- LOG NEW TRADE -->
+  <div style="background:#f8fafb;border:1px solid #e5e7eb;border-radius:12px;padding:14px;margin-bottom:14px;">
+    <div style="font-size:11px;font-weight:800;color:#374151;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">📝 Log a Trade</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr auto;gap:8px;align-items:end;">
+      <div>
+        <div style="font-size:9px;color:#9ca3af;margin-bottom:4px;">Tom Said</div>
+        <select id="log-rec" style="width:100%;padding:7px;border:1px solid #d1d5db;border-radius:8px;font-size:12px;background:#fff;color:#111827;">
+          <option value="BUY">📈 BUY</option>
+          <option value="SELL">📉 SELL</option>
+          <option value="WAIT">⏳ WAIT</option>
+        </select>
+      </div>
+      <div>
+        <div style="font-size:9px;color:#9ca3af;margin-bottom:4px;">Entry Price</div>
+        <input id="log-entry" type="number" placeholder="e.g. 3350" style="width:100%;padding:7px;border:1px solid #d1d5db;border-radius:8px;font-size:12px;color:#111827;" />
+      </div>
+      <div>
+        <div style="font-size:9px;color:#9ca3af;margin-bottom:4px;">Exit Price (optional)</div>
+        <input id="log-exit" type="number" placeholder="fill later" style="width:100%;padding:7px;border:1px solid #d1d5db;border-radius:8px;font-size:12px;color:#111827;" />
+      </div>
+      <div>
+        <div style="font-size:9px;color:#9ca3af;margin-bottom:4px;">Result</div>
+        <select id="log-result" style="width:100%;padding:7px;border:1px solid #d1d5db;border-radius:8px;font-size:12px;background:#fff;color:#111827;">
+          <option value="pending">⏳ Pending</option>
+          <option value="win">✅ WIN</option>
+          <option value="loss">❌ LOSS</option>
+        </select>
+      </div>
+      <button onclick="addLogEntry()" style="background:#22c55e;color:#fff;border:none;border-radius:8px;padding:8px 16px;font-weight:800;font-size:12px;cursor:pointer;white-space:nowrap;">+ Add</button>
+    </div>
+    <div style="margin-top:8px;">
+      <div style="font-size:9px;color:#9ca3af;margin-bottom:4px;">Notes (optional)</div>
+      <input id="log-notes" type="text" placeholder="e.g. London session, broke resistance..." style="width:100%;padding:7px;border:1px solid #d1d5db;border-radius:8px;font-size:12px;color:#111827;" />
+    </div>
+  </div>
+
+  <!-- LOG TABLE -->
+  <div style="overflow-x:auto;">
+    <table style="width:100%;border-collapse:collapse;font-size:12px;">
+      <thead>
+        <tr style="background:#f0fdf4;">
+          <th style="padding:8px 10px;text-align:left;color:#6b7280;font-weight:700;font-size:10px;text-transform:uppercase;border-bottom:2px solid #d1fae5;">#</th>
+          <th style="padding:8px 10px;text-align:left;color:#6b7280;font-weight:700;font-size:10px;text-transform:uppercase;border-bottom:2px solid #d1fae5;">Time</th>
+          <th style="padding:8px 10px;text-align:left;color:#6b7280;font-weight:700;font-size:10px;text-transform:uppercase;border-bottom:2px solid #d1fae5;">Tom Said</th>
+          <th style="padding:8px 10px;text-align:left;color:#6b7280;font-weight:700;font-size:10px;text-transform:uppercase;border-bottom:2px solid #d1fae5;">Entry</th>
+          <th style="padding:8px 10px;text-align:left;color:#6b7280;font-weight:700;font-size:10px;text-transform:uppercase;border-bottom:2px solid #d1fae5;">Exit</th>
+          <th style="padding:8px 10px;text-align:left;color:#6b7280;font-weight:700;font-size:10px;text-transform:uppercase;border-bottom:2px solid #d1fae5;">P&L $</th>
+          <th style="padding:8px 10px;text-align:left;color:#6b7280;font-weight:700;font-size:10px;text-transform:uppercase;border-bottom:2px solid #d1fae5;">Result</th>
+          <th style="padding:8px 10px;text-align:left;color:#6b7280;font-weight:700;font-size:10px;text-transform:uppercase;border-bottom:2px solid #d1fae5;">Notes</th>
+          <th style="padding:8px 10px;text-align:center;color:#6b7280;font-weight:700;font-size:10px;text-transform:uppercase;border-bottom:2px solid #d1fae5;">✏️</th>
+        </tr>
+      </thead>
+      <tbody id="log-tbody">
+        <tr id="log-empty-row">
+          <td colspan="9" style="text-align:center;padding:24px;color:#9ca3af;font-size:13px;">No trades logged yet. Add your first trade above ☝️</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- BOTTOM STATS -->
+<div class="stats-row">
+  <div class="stat-card">
+    <div class="stat-lbl">Price vs Open</div>
+    <div class="stat-val up" id="stat-vsopen">+0.00%</div>
+    <div class="stat-sub">Today's move</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-lbl">Day Range $</div>
+    <div class="stat-val neutral" id="stat-range">$---</div>
+    <div class="stat-sub">High - Low</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-lbl">Active Sessions</div>
+    <div class="stat-val blue" id="stat-sess">0</div>
+    <div class="stat-sub">Markets open now</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-lbl">Dubai Time</div>
+    <div class="stat-val neutral" id="stat-time">--:--</div>
+    <div class="stat-sub">GMT +4</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-lbl">Last Update</div>
+    <div class="stat-val" id="stat-update" style="font-size:12px;color:var(--muted);">--:--:--</div>
+    <div class="stat-sub">Auto refresh 10s</div>
+  </div>
+</div>
+
+<div class="footer">
+  Chart: TradingView &nbsp;·&nbsp; Price: Yahoo Finance &nbsp;·&nbsp; Dubai Time (GMT+4)<br>
+  <div class="last-upd" id="last-upd">Last fetch: --</div>
+  <button class="refresh-btn" onclick="fetchPrice()">⟳ Refresh Now</button>
+</div>
+
+<script>
+// ── STATE ──
+let lastPrice = 0, prevPrice = 0;
+let alertQueue = [];
+let alertShowing = false;
+
+// Auto trader state
+let autoTradeEnabled = true;
+let lastSignalSent    = '';       // last direction sent to bot
+let lastSignalTime    = 0;        // timestamp
+let botConnected      = false;    // is VPS bot reachable?
+const BOT_URL         = ''; // same origin — TomBridge serves dashboard on port 5055
+const SIGNAL_COOLDOWN = 5 * 60 * 1000; // 5 min between same-direction signals
+
+// ── CLOCK ──
+function updateClock(){
+  const now = new Date();
+  const opts = {timeZone:'Asia/Dubai'};
+  const time = now.toLocaleTimeString('en-US',{...opts,hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false});
+  const date = now.toLocaleDateString('en-US',{...opts,weekday:'long',day:'numeric',month:'short'});
+  document.getElementById('clock').textContent = time;
+  document.getElementById('clock-date').textContent = date;
+  document.getElementById('stat-time').textContent = time.slice(0,5);
+  updateSessions(now);
+}
+setInterval(updateClock,1000);
+updateClock();
+
+// ── SESSIONS ──
+function updateSessions(now){
+  const h = parseFloat(new Intl.DateTimeFormat('en',{timeZone:'Asia/Dubai',hour:'numeric',minute:'2-digit',hour12:false}).format(now).replace(':','.'));
+  const sessions=[
+    {id:'sess-sydney', st:'st-sydney',  s:22, e:31}, // 22-07 (31=7+24)
+    {id:'sess-tokyo',  st:'st-tokyo',   s:3,  e:12},
+    {id:'sess-london', st:'st-london',  s:11, e:19},
+    {id:'sess-ny',     st:'st-ny',      s:16, e:25}, // 16-01 (25=1+24)
+  ];
+  let active=0;
+  sessions.forEach(s=>{
+    const hh = h < s.s && s.e > 24 ? h+24 : h;
+    const on = hh >= s.s && hh < s.e;
+    const el = document.getElementById(s.id);
+    el.classList.toggle('active',on);
+    document.getElementById(s.st).textContent = on ? '● OPEN' : 'CLOSED';
+    if(on) active++;
+  });
+  // London+NY overlap
+  const londonH = h>=11&&h<19, nyH=(h>=16||h<1);
+  document.getElementById('sess-london').classList.toggle('overlap', londonH&&nyH);
+  document.getElementById('sess-ny').classList.toggle('overlap', londonH&&nyH);
+
+  document.getElementById('stat-sess').textContent = active;
+  const sessEl = document.getElementById('mood-sess');
+  const sessSub = document.getElementById('mood-sess-sub');
+  if(londonH&&nyH){sessEl.textContent='HIGH';sessEl.className='mood-val up';sessSub.textContent='London + NY overlap ⚡';}
+  else if(active>=1){sessEl.textContent='MED';sessEl.className='mood-val neutral';sessSub.textContent=active+' session(s) open';}
+  else{sessEl.textContent='LOW';sessEl.className='mood-val down';sessSub.textContent='All sessions closed';}
+}
+
+// ── PRICE FETCH ──
+async function fetchPrice(){
+  try{
+    let price, prev, high, low;
+    // Try multiple sources in order
+    const sources = [
+      // 1. Metals-API (free spot XAUUSD)
+      async () => {
+        const r = await fetch('https://api.metals.live/v1/spot/gold', {cache:'no-store'});
+        const d = await r.json();
+        const price = d.price || d[0]?.price;
+        if(!price) throw new Error('no price');
+        return { price, prev: price, high: price, low: price, source: 'Metals.live (Spot)' };
+      },
+      // 2. Swissquote spot XAUUSD
+      async () => {
+        const r = await fetch('https://forex-data-feed.swissquote.com/public-quotes/bboquotes/instrument/XAU/USD', {cache:'no-store'});
+        const d = await r.json();
+        const sp = d[0].spreadProfilePrices.find(x=>x.spreadProfile==='prime') || d[0].spreadProfilePrices[0];
+        const price = (sp.bid + sp.ask) / 2;
+        return { price, prev: price, high: price, low: price, source: 'Swissquote (Spot)' };
+      },
+      // 3. Yahoo XAUUSD=X (spot, not futures)
+      async () => {
+        const r = await fetch('https://query1.finance.yahoo.com/v8/finance/chart/XAUUSD%3DX?interval=1m&range=1d', {cache:'no-store', headers:{'Accept':'application/json'}});
+        const d = await r.json();
+        const m = d.chart.result[0].meta;
+        return { price: m.regularMarketPrice, prev: m.chartPreviousClose||m.regularMarketPrice, high: m.regularMarketDayHigh||m.regularMarketPrice, low: m.regularMarketDayLow||m.regularMarketPrice, source: 'Yahoo Spot' };
+      },
+      // 4. Yahoo GC=F futures fallback
+      async () => {
+        const r = await fetch('https://query1.finance.yahoo.com/v8/finance/chart/GC%3DF?interval=1m&range=1d', {cache:'no-store', headers:{'Accept':'application/json'}});
+        const d = await r.json();
+        const m = d.chart.result[0].meta;
+        return { price: m.regularMarketPrice, prev: m.chartPreviousClose||m.regularMarketPrice, high: m.regularMarketDayHigh||m.regularMarketPrice, low: m.regularMarketDayLow||m.regularMarketPrice, source: 'Yahoo Futures ⚠️' };
+      },
+      // 5. allorigins proxy fallback
+      async () => {
+        const url = 'https://api.allorigins.win/get?url=' + encodeURIComponent('https://query1.finance.yahoo.com/v8/finance/chart/XAUUSD%3DX?interval=1m&range=1d');
+        const r = await fetch(url, {cache:'no-store'});
+        const w = await r.json();
+        const d = JSON.parse(w.contents);
+        const m = d.chart.result[0].meta;
+        return { price: m.regularMarketPrice, prev: m.chartPreviousClose||m.regularMarketPrice, high: m.regularMarketDayHigh||m.regularMarketPrice, low: m.regularMarketDayLow||m.regularMarketPrice, source: 'Proxy Spot' };
+      }
+    ];
+
+    let result = null;
+    for(const src of sources){
+      try{ result = await src(); if(result && result.price > 0) break; } catch(ex){ continue; }
+    }
+    if(!result || !result.price) throw new Error('All price sources failed');
+    price = result.price; prev = result.prev; high = result.high; low = result.low;
+    const chg   = price - prev;
+    const pct   = (chg/prev)*100;
+    const range = high - low;
+
+    // Flash
+    if(lastPrice && price !== lastPrice){
+      const el = document.getElementById('price-main');
+      el.style.transition='color .3s';
+      el.style.color = price > lastPrice ? '#00ff88' : '#ff4444';
+      setTimeout(()=>el.style.color='var(--gold)',600);
+
+      // Price movement alert
+      const move = Math.abs(price - lastPrice);
+      if(move > 2) triggerAlert(price > lastPrice ? 'bull' : 'bear',
+        price > lastPrice ? '📈 GOLD SPIKING UP' : '📉 GOLD DROPPING',
+        '$' + Math.abs(price-lastPrice).toFixed(2) + ' move detected · Price: $' + price.toFixed(2));
+    }
+    prevPrice = lastPrice;
+    lastPrice = price;
+
+    // Update price displays
+    document.getElementById('price-main').textContent = '$' + price.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+    const chgEl = document.getElementById('price-chg');
+    chgEl.textContent = (chg>=0?'▲ +':'▼ ')+'$'+Math.abs(chg).toFixed(2)+' ('+(chg>=0?'+':'')+pct.toFixed(2)+'%)';
+    chgEl.className = chg>=0?'up':'down';
+    document.getElementById('day-high').textContent = '$'+high.toFixed(2);
+    document.getElementById('day-low').textContent  = '$'+low.toFixed(2);
+    document.getElementById('day-range').textContent= '$'+range.toFixed(2);
+    document.getElementById('prev-close').textContent= '$'+prev.toFixed(2);
+    document.getElementById('lvl-current').textContent= '$'+Math.round(price);
+    document.getElementById('stat-vsopen').textContent = (chg>=0?'+':'')+pct.toFixed(2)+'%';
+    document.getElementById('stat-vsopen').className = 'stat-val '+(chg>=0?'up':'down');
+    document.getElementById('stat-range').textContent = '$'+range.toFixed(2);
+
+    // Volatility mood
+    const volEl = document.getElementById('mood-vol');
+    const volSub = document.getElementById('mood-vol-sub');
+    if(range>30){volEl.textContent='HIGH';volEl.className='mood-val up';volSub.textContent='Range: $'+range.toFixed(0)+' — Active!';}
+    else if(range>15){volEl.textContent='MED';volEl.className='mood-val neutral';volSub.textContent='Range: $'+range.toFixed(0);}
+    else{volEl.textContent='LOW';volEl.className='mood-val down';volSub.textContent='Range: $'+range.toFixed(0)+' — Ranging';}
+
+    // Time
+    const now = new Date();
+    const t = now.toLocaleTimeString('en-US',{timeZone:'Asia/Dubai',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false});
+    document.getElementById('stat-update').textContent = t;
+    document.getElementById('last-upd').textContent = 'Last fetch: '+t+' Dubai | Source: '+(result.source||'Yahoo');
+
+    // Update trade setups dynamically
+    updateSetups(price, high, low);
+    // Update main alert banner
+    updateAlertBanner(price, prev, chg, pct, range);
+    // Update Tom assistant
+    updateAssistant(price, prev, chg, pct, high, low, range);
+
+  }catch(e){
+    const t2 = new Date().toLocaleTimeString('en-US',{timeZone:'Asia/Dubai',hour12:false});
+    document.getElementById('last-upd').textContent = '⚠️ Fetch failed at '+t2+' — retrying in 10s...';
+    console.warn('fetchPrice error:', e);
+  }
+}
+
+// ── UPDATE ALERT BANNER ──
+function updateAlertBanner(price, prev, chg, pct, range){
+  const banner = document.getElementById('alertBanner');
+  const dir    = document.getElementById('alertDirection');
+  const reason = document.getElementById('alertReason');
+  const badges = document.getElementById('alertBadges');
+  const icon   = document.getElementById('alertIcon');
+
+  const pctAbs = Math.abs(pct);
+  const isBull = chg > 0;
+  const isStrong = pctAbs > 0.5;
+  const isWeak = pctAbs < 0.1;
+
+  banner.className = 'alert-banner ' + (isBull ? 'bull' : isWeak ? 'neutral' : 'bear');
+
+  if(isWeak){
+    icon.textContent = '⚠️';
+    dir.textContent = '⚡ RANGING — WAIT FOR BREAKOUT';
+    dir.className = 'alert-direction neutral';
+    reason.textContent = 'Market is flat · Price near open · No clear direction yet · Watch for breakout';
+    badges.innerHTML = '<span class="badge b-neu">No Clear Trend</span><span class="badge b-neu">Wait & Watch</span><span class="badge b-blue">Set Alerts</span>';
+  } else if(isBull && isStrong){
+    icon.textContent = '🚀';
+    dir.textContent = '▲ BULLISH — LOOK FOR BUYS';
+    dir.className = 'alert-direction up';
+    reason.textContent = 'Gold up ' + pct.toFixed(2) + '% today · Price: $' + price.toFixed(2) + ' · Momentum favors bulls · Buy dips near support';
+    badges.innerHTML = '<span class="badge b-bull">Bullish Trend</span><span class="badge b-bull">Buy Dips</span><span class="badge b-neu">Watch $'+Math.round(price+20)+' Resistance</span>';
+  } else if(isBull && !isStrong){
+    icon.textContent = '📈';
+    dir.textContent = '▲ MILD BULLISH — CAUTIOUS BUYS';
+    dir.className = 'alert-direction up';
+    reason.textContent = 'Gold slightly up +' + pct.toFixed(2) + '% · Wait for pullback to buy · Don\'t chase';
+    badges.innerHTML = '<span class="badge b-bull">Mild Uptrend</span><span class="badge b-neu">Wait for Pullback</span><span class="badge b-blue">No Rush</span>';
+  } else if(!isBull && isStrong){
+    icon.textContent = '📉';
+    dir.textContent = '▼ BEARISH — LOOK FOR SELLS';
+    dir.className = 'alert-direction down';
+    reason.textContent = 'Gold down ' + pct.toFixed(2) + '% today · Price: $' + price.toFixed(2) + ' · Momentum bearish · Sell rallies near resistance';
+    badges.innerHTML = '<span class="badge b-bear">Bearish Trend</span><span class="badge b-bear">Sell Rallies</span><span class="badge b-neu">Watch $'+Math.round(price-20)+' Support</span>';
+  } else {
+    icon.textContent = '📉';
+    dir.textContent = '▼ MILD BEARISH — CAUTIOUS SELLS';
+    dir.className = 'alert-direction down';
+    reason.textContent = 'Gold down ' + Math.abs(pct).toFixed(2) + '% · Small move · Wait for clearer setup';
+    badges.innerHTML = '<span class="badge b-bear">Mild Downtrend</span><span class="badge b-neu">Wait for Setup</span><span class="badge b-blue">Small Moves</span>';
+  }
+
+  // Mood trend
+  const moodTrend = document.getElementById('mood-trend');
+  moodTrend.textContent = isBull ? 'BULL' : isWeak ? 'FLAT' : 'BEAR';
+  moodTrend.className = 'mood-val ' + (isBull ? 'up' : isWeak ? 'neutral' : 'down');
+
+  // Sentiment note
+  const sentNote = document.getElementById('sent-note');
+  if(isBull){
+    sentNote.textContent = '📊 Retail majority LONG — but bullish momentum is real today. Follow trend but tighten stops near resistance.';
+  } else if(isWeak){
+    sentNote.textContent = '⚠️ Retail majority LONG but price not moving — potential squeeze brewing. Stay flat until breakout.';
+  } else {
+    sentNote.textContent = '🔔 Retail majority LONG but price is falling — classic trap. Sellers in control. Follow the drop.';
+  }
+}
+
+// ── UPDATE TRADE SETUPS ──
+function updateSetups(price, high, low){
+  const support1 = Math.round(price - 20);
+  const support2 = Math.round(price - 60);
+  const resist1  = Math.round(price + 30);
+  const resist2  = Math.round(price + 70);
+  const buySL    = Math.round(price - 40);
+  const buyTP1   = Math.round(price + 50);
+  const buyTP2   = Math.round(price + 100);
+  const sellSL   = Math.round(price + 50);
+  const sellTP1  = Math.round(price - 40);
+  const sellTP2  = Math.round(price - 90);
+
+  document.getElementById('buy-entry').textContent = '$'+support1+' – $'+Math.round(price-10);
+  document.getElementById('buy-sl').textContent    = '$'+buySL;
+  document.getElementById('buy-tp1').textContent   = '$'+buyTP1;
+  document.getElementById('buy-tp2').textContent   = '$'+buyTP2;
+  document.getElementById('sell-entry').textContent= '$'+resist1+' – $'+resist2;
+  document.getElementById('sell-sl').textContent   = '$'+sellSL;
+  document.getElementById('sell-tp1').textContent  = '$'+sellTP1;
+  document.getElementById('sell-tp2').textContent  = '$'+sellTP2;
+}
+
+// ── POPUP ALERTS ──
+function triggerAlert(type, title, msg){
+  const popup = document.getElementById('alertPopup');
+  const now = new Date().toLocaleTimeString('en-US',{timeZone:'Asia/Dubai',hour12:false});
+  popup.className = 'alert-popup show '+(type==='bull'?'bull':type==='bear'?'bear':'warn');
+  document.getElementById('apTitle').textContent = title;
+  document.getElementById('apMsg').textContent   = msg;
+  document.getElementById('apTime').textContent  = '⏰ '+now+' Dubai';
+  setTimeout(()=>popup.classList.remove('show'), 8000);
+}
+function closeAlert(){document.getElementById('alertPopup').classList.remove('show');}
+function toggleBannerDetail(){
+  const p = parseFloat(document.getElementById('price-main').textContent.replace(/[$,]/g,''));
+  if(p) triggerAlert('warn','📊 MARKET ANALYSIS','Price: $'+p.toFixed(2)+'\nCheck chart for live confirmation.\nUse setup cards below for entry zones.');
+}
+
+// ── TOM ASSISTANT ──
+function updateAssistant(price, prev, chg, pct, high, low, range){
+  const h = parseFloat(new Intl.DateTimeFormat('en',{timeZone:'Asia/Dubai',hour:'numeric',minute:'2-digit',hour12:false}).format(new Date()).replace(':','.'));
+  const londonOpen = h>=11 && h<19;
+  const nyOpen     = h>=16 && h<24;
+  const tokyoOpen  = h>=3  && h<12;
+  const overlap    = londonOpen && nyOpen;
+  const anyOpen    = londonOpen || nyOpen || tokyoOpen;
+  const isBull     = chg > 0;
+  const pctAbs     = Math.abs(pct);
+  const isStrong   = pctAbs > 0.4;
+  const isFlat     = pctAbs < 0.1;
+  const isOverbought = price > high - (range * 0.1); // near day high
+  const isOversold   = price < low  + (range * 0.1); // near day low
+
+  const actionEl    = document.getElementById('tom-action');
+  const reasonEl    = document.getElementById('tom-reason');
+  const checkEl     = document.getElementById('tom-checklist');
+  const warnEl      = document.getElementById('tom-warnings');
+  const recBox      = document.getElementById('tom-rec');
+  const buyZone     = document.getElementById('tom-buy-zone');
+  const sellZone    = document.getElementById('tom-sell-zone');
+  const slEl        = document.getElementById('tom-sl');
+  const tpEl        = document.getElementById('tom-tp');
+
+  let action, reason, checks, warns, color, bg, border;
+  const p = Math.round(price);
+
+  // ── DECISION LOGIC ──
+  if(!anyOpen){
+    action = '⏳ WAIT — MARKET QUIET';
+    reason = 'All major sessions closed right now. Low volume = fake moves. Best to wait for London open (11:00 Dubai) before entering any trade.';
+    color='#b45309'; bg='#fffbeb'; border='#fcd34d';
+    checks = '⏳ Wait for London open\n📊 Review H4 chart\n📝 Plan your levels';
+    warns  = '❌ No trading during off-hours\n❌ Spreads are wide\n❌ Volume very low';
+  } else if(isFlat){
+    action = '⚡ WAIT — NO CLEAR MOVE';
+    reason = 'Gold is ranging flat — price barely moved from open. This is a consolidation phase. Wait for a breakout with volume before entering.';
+    color='#1d4ed8'; bg='#eff6ff'; border='#93c5fd';
+    checks = '⏳ Wait for breakout\n📊 Watch $'+Math.round(high)+' resistance\n📊 Watch $'+Math.round(low)+' support';
+    warns  = '❌ Do not trade the range\n❌ Wait for candle close\n❌ Fake breakouts likely';
+  } else if(isBull && isStrong && !isOverbought){
+    action = '✅ BUY — GOOD SETUP';
+    reason = 'Gold is up '+pct.toFixed(2)+'% today with strong momentum. Price is NOT near the day high — room to move up. '+(overlap?'London+NY overlap active = HIGH VOLUME ⚡':'Session active.')+ ' Look to buy on small pullback.';
+    color='#16a34a'; bg='#f0fdf4'; border='#86efac';
+    checks = '✅ Bullish momentum confirmed\n✅ '+(overlap?'London+NY overlap (best time)':'Active session')+'\n✅ Room to day high: $'+Math.round(high-price)+'\n✅ Buy on dip to $'+(p-15)+' - $'+(p-5);
+    warns  = '❌ Don\'t buy at day high $'+Math.round(high)+'\n⚠️ Set SL below $'+(p-30)+'\n⚠️ Watch for US news';
+  } else if(isBull && isOverbought){
+    action = '⚠️ WAIT — PRICE NEAR HIGH';
+    reason = 'Gold is bullish but price is very close to the day high ($'+high.toFixed(0)+'). Chasing here is risky. Wait for a pullback to $'+(p-20)+' - $'+(p-10)+' before buying.';
+    color='#b45309'; bg='#fffbeb'; border='#fcd34d';
+    checks = '⏳ Wait for pullback to $'+(p-20)+'\n📊 Target entry: $'+(p-15)+' - $'+(p-5)+'\n✅ Trend still bullish';
+    warns  = '❌ Do NOT buy at highs\n❌ Risk of sharp reversal\n❌ Wait patiently';
+  } else if(!isBull && isStrong && !isOversold){
+    action = '🔴 SELL — BEARISH SETUP';
+    reason = 'Gold is down '+Math.abs(pct).toFixed(2)+'% today with selling pressure. Price NOT near day low — room to fall. '+(overlap?'London+NY overlap = high volume selling ⚡':'')+' Look to sell on small bounce.';
+    color='#dc2626'; bg='#fff5f5'; border='#fca5a5';
+    checks = '✅ Bearish momentum confirmed\n✅ '+(overlap?'High volume session':'Active session')+'\n✅ Room to day low: $'+Math.round(price-low)+'\n✅ Sell bounce to $'+(p+10)+' - $'+(p+20);
+    warns  = '❌ Don\'t sell at day low $'+Math.round(low)+'\n⚠️ Set SL above $'+(p+30)+'\n⚠️ Gold long-term bullish';
+  } else if(!isBull && isOversold){
+    action = '⚠️ WAIT — NEAR DAY LOW';
+    reason = 'Gold is falling but price is very close to day low ($'+low.toFixed(0)+'). Selling here is risky — bounce likely. Wait for a bounce to $'+(p+10)+' - $'+(p+20)+' before selling.';
+    color='#b45309'; bg='#fffbeb'; border='#fcd34d';
+    checks = '⏳ Wait for bounce to sell\n📊 Target entry: $'+(p+10)+' - $'+(p+20)+'\n⚠️ Could bounce sharply';
+    warns  = '❌ Do NOT sell at lows\n❌ Risk of sharp bounce\n❌ Wait for confirmation';
+  } else {
+    action = '👀 WATCHING — MILD MOVE';
+    reason = 'Market moving '+(isBull?'up':'down')+' but not strong enough yet. Wait for momentum to build or a clearer setup before entering.';
+    color='#6b7280'; bg='#f9fafb'; border='#e5e7eb';
+    checks = '⏳ Wait for stronger move\n📊 Watch session overlap\n📊 Monitor every 15 min';
+    warns  = '❌ Weak signal\n❌ Don\'t force a trade\n❌ Patience = profit';
+  }
+
+  // Auto-log removed — only logs when bot actually trades
+
+  // Send Telegram alert / auto trade
+  triggerTelegramAlert(action, price, reason, pct, range);
+
+  // Apply
+  actionEl.textContent = action;
+  actionEl.style.color = color;
+  reasonEl.textContent = reason;
+  recBox.style.background = bg;
+  recBox.style.border = '1px solid '+border;
+  checkEl.innerHTML = checks.split('\n').map(l=>'<div>'+l+'</div>').join('');
+  warnEl.innerHTML  = warns.split('\n').map(l=>'<div>'+l+'</div>').join('');
+
+  // Levels
+  buyZone.textContent  = '$'+(p-20)+' – $'+(p-5);
+  sellZone.textContent = '$'+(p+10)+' – $'+(p+25);
+  slEl.textContent     = '$'+(isBull ? p-35 : p+35);
+  tpEl.textContent     = '$'+(isBull ? p+50 : p-50);
+}
+
+// ══════════════════════════════════════════
+// TRADE LOG + ACCURACY TRACKER
+// ══════════════════════════════════════════
+let tradeLog = JSON.parse(localStorage.getItem('tomTradeLog') || '[]');
+
+function saveLog(){ localStorage.setItem('tomTradeLog', JSON.stringify(tradeLog)); }
+
+function addLogEntry(){
+  const rec    = document.getElementById('log-rec').value;
+  const entry  = parseFloat(document.getElementById('log-entry').value);
+  const exit   = parseFloat(document.getElementById('log-exit').value) || null;
+  const result = document.getElementById('log-result').value;
+  const notes  = document.getElementById('log-notes').value.trim();
+
+  if(!entry){ alert('Please enter an entry price!'); return; }
+
+  const now = new Date().toLocaleString('en-US',{
+    timeZone:'Asia/Dubai',
+    month:'short', day:'numeric',
+    hour:'2-digit', minute:'2-digit', hour12:false
+  });
+
+  // Calculate P&L
+  let pnl = null;
+  if(exit && entry){
+    if(rec==='BUY')  pnl = (exit - entry).toFixed(2);
+    if(rec==='SELL') pnl = (entry - exit).toFixed(2);
+  }
+
+  const trade = { id: Date.now(), time: now, rec, entry, exit, pnl, result, notes };
+  tradeLog.unshift(trade); // newest first
+  saveLog();
+
+  // Clear inputs
+  document.getElementById('log-entry').value = '';
+  document.getElementById('log-exit').value  = '';
+  document.getElementById('log-notes').value = '';
+  document.getElementById('log-result').value = 'pending';
+
+  renderLog();
+}
+
+function updateTradeResult(id, result){
+  const t = tradeLog.find(x => x.id === id);
+  if(!t) return;
+  t.result = result;
+  // Recalc pnl if exit exists
+  if(t.exit && t.entry){
+    if(t.rec==='BUY')  t.pnl = (t.exit - t.entry).toFixed(2);
+    if(t.rec==='SELL') t.pnl = (t.entry - t.exit).toFixed(2);
+  }
+  saveLog();
+  renderLog();
+}
+
+function updateExitPrice(id){
+  const exit = parseFloat(prompt('Enter exit price:'));
+  if(!exit) return;
+  const t = tradeLog.find(x => x.id === id);
+  if(!t) return;
+  t.exit = exit;
+  if(t.rec==='BUY')  t.pnl = (exit - t.entry).toFixed(2);
+  if(t.rec==='SELL') t.pnl = (t.entry - exit).toFixed(2);
+  // Auto-set result based on pnl
+  if(t.result === 'pending') t.result = parseFloat(t.pnl) >= 0 ? 'win' : 'loss';
+  saveLog();
+  renderLog();
+}
+
+function deleteEntry(id){
+  if(!confirm('Delete this entry?')) return;
+  tradeLog = tradeLog.filter(x => x.id !== id);
+  saveLog();
+  renderLog();
+}
+
+function clearLog(){
+  if(!confirm('Clear ALL trade log entries? This cannot be undone.')) return;
+  tradeLog = [];
+  saveLog();
+  renderLog();
+}
+
+function renderLog(){
+  const tbody   = document.getElementById('log-tbody');
+  const emptyRow= document.getElementById('log-empty-row');
+
+  // Stats
+  const total   = tradeLog.length;
+  const correct = tradeLog.filter(t => t.result === 'win').length;
+  const wrong   = tradeLog.filter(t => t.result === 'loss').length;
+  const pending = tradeLog.filter(t => t.result === 'pending').length;
+  const decided = correct + wrong;
+  const acc     = decided > 0 ? Math.round((correct / decided) * 100) : null;
+
+  document.getElementById('log-total').textContent    = total;
+  document.getElementById('log-correct').textContent  = correct;
+  document.getElementById('log-wrong').textContent    = wrong;
+  document.getElementById('log-pending').textContent  = pending;
+  document.getElementById('log-accuracy').textContent = acc !== null ? acc + '%' : '--%';
+  document.getElementById('log-acc-bar').style.width  = (acc || 0) + '%';
+  document.getElementById('log-acc-bar').style.background = acc >= 60 ? 'linear-gradient(90deg,#22c55e,#16a34a)' : acc >= 40 ? 'linear-gradient(90deg,#f59e0b,#d97706)' : 'linear-gradient(90deg,#ef4444,#dc2626)';
+  document.getElementById('log-acc-pct').textContent  = acc !== null ? acc + '% accuracy (' + correct + '/' + decided + ' decided trades)' : 'No completed trades yet';
+
+  if(total === 0){
+    tbody.innerHTML = '<tr id="log-empty-row"><td colspan="9" style="text-align:center;padding:24px;color:#9ca3af;font-size:13px;">No trades logged yet. Add your first trade above ☝️</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = tradeLog.map((t,i) => {
+    const recColor  = t.rec==='BUY' ? '#16a34a' : t.rec==='SELL' ? '#dc2626' : '#b45309';
+    const recBg     = t.rec==='BUY' ? '#dcfce7' : t.rec==='SELL' ? '#fee2e2' : '#fef9c3';
+    const resBadge  = t.result==='win'
+      ? '<span style="background:#dcfce7;color:#16a34a;border:1px solid #86efac;border-radius:10px;padding:2px 10px;font-weight:700;font-size:11px;">✅ WIN</span>'
+      : t.result==='loss'
+      ? '<span style="background:#fee2e2;color:#dc2626;border:1px solid #fca5a5;border-radius:10px;padding:2px 10px;font-weight:700;font-size:11px;">❌ LOSS</span>'
+      : '<span style="background:#fef9c3;color:#b45309;border:1px solid #fcd34d;border-radius:10px;padding:2px 10px;font-weight:700;font-size:11px;">⏳ PENDING</span>';
+    const pnlStr    = t.pnl !== null ? (parseFloat(t.pnl)>=0 ? '<span style="color:#16a34a;font-weight:800;">+$'+t.pnl+'</span>' : '<span style="color:#dc2626;font-weight:800;">-$'+Math.abs(t.pnl)+'</span>') : '<span style="color:#9ca3af;">--</span>';
+    const exitStr   = t.exit ? '$'+t.exit : '<button onclick="updateExitPrice('+t.id+')" style="background:#dbeafe;border:1px solid #93c5fd;color:#1d4ed8;border-radius:6px;padding:2px 8px;font-size:10px;cursor:pointer;">+ Exit</button>';
+    const rowBg     = i%2===0 ? '#fff' : '#fafafa';
+    return `<tr style="background:${rowBg};border-bottom:1px solid #f3f4f6;">
+      <td style="padding:8px 10px;color:#9ca3af;font-weight:700;">${total - i}</td>
+      <td style="padding:8px 10px;color:#6b7280;white-space:nowrap;">${t.time}</td>
+      <td style="padding:8px 10px;"><span style="background:${recBg};color:${recColor};border-radius:8px;padding:3px 10px;font-weight:800;font-size:11px;">${t.rec}</span></td>
+      <td style="padding:8px 10px;font-weight:700;color:#111827;">$${t.entry}</td>
+      <td style="padding:8px 10px;">${exitStr}</td>
+      <td style="padding:8px 10px;">${pnlStr}</td>
+      <td style="padding:8px 10px;">${resBadge}</td>
+      <td style="padding:8px 10px;color:#6b7280;font-size:11px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${t.notes||''}">${t.notes||'--'}</td>
+      <td style="padding:8px 10px;text-align:center;">
+        ${t.result==='pending' ? `<button onclick="updateTradeResult(${t.id},'win')" style="background:#dcfce7;border:1px solid #86efac;color:#16a34a;border-radius:4px;padding:2px 6px;font-size:10px;cursor:pointer;margin-right:2px;">W</button><button onclick="updateTradeResult(${t.id},'loss')" style="background:#fee2e2;border:1px solid #fca5a5;color:#dc2626;border-radius:4px;padding:2px 6px;font-size:10px;cursor:pointer;">L</button>` : ''}
+        <button onclick="deleteEntry(${t.id})" style="background:#f3f4f6;border:1px solid #e5e7eb;color:#9ca3af;border-radius:4px;padding:2px 6px;font-size:10px;cursor:pointer;margin-left:2px;">🗑</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+// Auto-log ONLY when bot actually places a trade (called from updateBotPanel)
+function autoLogBotTrade(direction, price, ticket){
+  const rec = direction === 'BUY' ? 'BUY' : 'SELL';
+  const now = new Date().toLocaleString('en-US',{
+    timeZone:'Asia/Dubai', month:'short', day:'numeric',
+    hour:'2-digit', minute:'2-digit', hour12:false
+  });
+  const auto = { id: Date.now(), time: now+' (bot)', rec, entry: Math.round(price), exit: null, pnl: null, result: 'pending', notes: 'Bot trade #'+ticket };
+  tradeLog.unshift(auto);
+  saveLog();
+  renderLog();
+}
+
+// Render on load
+renderLog();
+
+// ══════════════════════════════════════════
+// TELEGRAM ALERTS
+// ══════════════════════════════════════════
+const TG_TOKEN   = '8865772661:AAFxgcvm514Dlj_4b4cbmjBKFNZCV35amk0';
+const TG_CHAT_ID = '7015050894';
+let   tgEnabled  = true;
+let   lastTgSignal = '';
+let   lastTgTime   = 0;
+
+async function sendTelegram(msg){
+  if(!tgEnabled) return;
+  // Throttle — don't send same signal more than once per 5 minutes
+  const now = Date.now();
+  const throttleKey = msg.substring(0,80); // compare first 80 chars
+  if(throttleKey === lastTgSignal && now - lastTgTime < 5 * 60 * 1000) return;
+  lastTgSignal = throttleKey;
+  lastTgTime   = now;
+
+  try{
+    const url = `https://api.telegram.org/bot${TG_TOKEN}/sendMessage`;
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({
+        chat_id: TG_CHAT_ID,
+        text: msg,
+        parse_mode: 'HTML'
+      })
+    });
+    const data = await res.json();
+    if(data.ok){
+      console.log('✅ Telegram sent OK');
+      // Show brief on-screen confirmation
+      const dot = document.getElementById('tg-status-dot');
+      if(dot){ dot.style.background='#3b82f6'; setTimeout(()=>dot.style.background='#22c55e',2000); }
+    } else {
+      console.warn('❌ Telegram error:', data);
+    }
+    return data;
+  } catch(e){
+    console.warn('Telegram fetch error:', e);
+  }
+}
+
+function buildTelegramMsg(action, price, reason){
+  const now = new Date().toLocaleString('en-US',{
+    timeZone:'Asia/Dubai',
+    weekday:'short', month:'short', day:'numeric',
+    hour:'2-digit', minute:'2-digit', hour12:false
+  });
+
+  let emoji = '⚡';
+  if(action.includes('BUY'))  emoji = '🚀';
+  if(action.includes('SELL')) emoji = '📉';
+  if(action.includes('WAIT') || action.includes('RANGING')) emoji = '⏳';
+
+  return `${emoji} <b>GOLD ALERT — TOM</b>
+
+📌 <b>${action}</b>
+💰 Price: <b>$${price.toFixed(2)}</b>
+📋 ${reason}
+
+🕐 ${now} Dubai
+
+⚠️ Analysis only — use your own judgment.`;
+}
+
+// Called from updateAssistant whenever signal changes
+function toggleTelegram(){
+  tgEnabled = !tgEnabled;
+  document.getElementById('tg-status-dot').style.background = tgEnabled ? '#22c55e' : '#ef4444';
+  document.getElementById('tg-status-txt').textContent = tgEnabled ? 'ENABLED' : 'DISABLED';
+  document.getElementById('tg-status-txt').style.color  = tgEnabled ? '#16a34a' : '#dc2626';
+  document.getElementById('tg-toggle-btn').textContent  = tgEnabled ? 'ON' : 'OFF';
+  document.getElementById('tg-toggle-btn').style.background = tgEnabled ? '#22c55e' : '#ef4444';
+  console.log('Telegram alerts:', tgEnabled ? 'ON' : 'OFF');
+}
+
+async function testTelegram(){
+  // Reset throttle so test always goes through
+  lastTgSignal = '';
+  lastTgTime   = 0;
+  const price = lastPrice || 0;
+  const priceStr = price > 0 ? '$'+price.toFixed(2) : 'Loading...';
+  const msg = `🧪 <b>TEST ALERT — TOM Dashboard</b>
+
+✅ Telegram connected successfully!
+💰 Current Gold Price: <b>${priceStr}</b>
+🕐 ${new Date().toLocaleString('en-US',{timeZone:'Asia/Dubai',hour12:false})}
+
+You will receive BUY/SELL/WAIT signals here automatically.`;
+  const res = await sendTelegram(msg);
+  alert('✅ Test message sent! Check your Telegram @GoldTomAlert_bot');
+}
+
+// ── SIGNAL FIRE (every signal on demo — no filter) ──
+function triggerTelegramAlert(action, price, reason, pct, range){
+  if(!tgEnabled) return;
+  if(action.includes('Analyzing') || action.includes('---')) return;
+
+  const direction = action.includes('BUY') ? 'BUY' : action.includes('SELL') ? 'SELL' : null;
+  const now       = Date.now();
+
+  if(direction){
+    // Cooldown: don't repeat same direction within 5 min
+    const cooldownPassed = (direction !== lastSignalSent) || (now - lastSignalTime > SIGNAL_COOLDOWN);
+    if(cooldownPassed){
+      lastSignalSent = direction;
+      lastSignalTime = now;
+      autoFireTrade(direction, price, reason);
+      return;
+    }
+  }
+
+  // WAIT/RANGING → just Telegram info (no trade)
+  if(action.includes('WAIT') || action.includes('RANGING') || action.includes('WATCHING')){
+    const tgKey = action.substring(0,30) + Math.round(price/10);
+    if(tgKey === (triggerTelegramAlert._lastWait||'')) return;
+    triggerTelegramAlert._lastWait = tgKey;
+    sendTelegram(buildTelegramMsg(action, price, reason));
+  }
+}
+
+// ── AUTO FIRE TRADE ──
+async function autoFireTrade(direction, price, reason){
+  const emoji = direction === 'BUY' ? '🚀' : '📉';
+  const sl    = direction === 'BUY' ? (price-30).toFixed(2) : (price+30).toFixed(2);
+  const tp    = direction === 'BUY' ? (price+60).toFixed(2) : (price-60).toFixed(2);
+
+  if(autoTradeEnabled){
+    try{
+      const res = await fetch(BOT_URL + '/signal', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({direction, price, reason}),
+        signal: AbortSignal.timeout(5000)
+      });
+      if(res.ok){
+        const data = await res.json();
+        botConnected = true;
+        updateBotStatus(true);
+        // Update bot panel with result
+        if(data.result) updateBotPanel(data.result);
+        console.log('✅ Trade fired:', data);
+        return;
+      }
+    } catch(e){
+      botConnected = false;
+      updateBotStatus(false);
+    }
+  }
+  // Fallback: Telegram only
+  sendTelegram(
+    `${emoji} <b>SIGNAL — ${direction}</b>\n💰 $${price.toFixed(2)} | SL $${sl} | TP $${tp}\n📋 ${reason}\n⚠️ Bot offline — place manually`
+  );
+}
+
+// ── BOT STATUS PANEL ──
+function updateBotStatus(connected){
+  const dot = document.getElementById('bot-status-dot');
+  const txt = document.getElementById('bot-status-txt');
+  if(!dot||!txt) return;
+  dot.style.background = connected ? '#22c55e' : '#ef4444';
+  txt.textContent      = connected ? '✅ BOT CONNECTED — MT4 Demo' : '❌ BOT OFFLINE — Telegram fallback active';
+  txt.style.color      = connected ? '#16a34a' : '#dc2626';
+}
+
+function updateBotPanel(result){
+  const el = document.getElementById('bot-last-trade');
+  if(!el || !result) return;
+  const emoji = result.dir==='BUY'?'🚀':'📉';
+  el.innerHTML = `${emoji} <b>${result.dir}</b> @ $${result.price} | SL $${result.sl} | TP $${result.tp} | #${result.ticket}`;
+  el.style.color = result.dir==='BUY'?'#16a34a':'#dc2626';
+  // Log ONLY real bot trades
+  autoLogBotTrade(result.dir, result.price, result.ticket);
+}
+
+// Poll bot status every 15s
+async function pollBotStatus(){
+  try{
+    const r = await fetch(BOT_URL+'/status', {signal:AbortSignal.timeout(3000)});
+    if(!r.ok) throw new Error();
+    const s = await r.json();
+    botConnected = true;
+    updateBotStatus(true);
+    // Update bot stats panel
+    const f = (id,v) => { const e=document.getElementById(id); if(e) e.textContent=v; };
+    f('bot-balance',  '$'+(s.balance||'--'));
+    f('bot-equity',   '$'+(s.equity||'--'));
+    f('bot-open',     (s.open||'0')+' trade(s)');
+    f('bot-total',    s.total||'0');
+    f('bot-wins',     s.wins||'0');
+    f('bot-losses',   s.losses||'0');
+    f('bot-accuracy', (s.accuracy||'0')+'%');
+    f('bot-pnl',      '$'+(s.totalpnl||'0'));
+    const pnlEl = document.getElementById('bot-pnl');
+    if(pnlEl) pnlEl.style.color = parseFloat(s.totalpnl||0)>=0?'#16a34a':'#dc2626';
+  } catch(e){
+    botConnected = false;
+    updateBotStatus(false);
+  }
+}
+setInterval(pollBotStatus, 15000);
+pollBotStatus();
+
+// ── INIT ──
+fetchPrice();
+setInterval(fetchPrice, 10000);
+</script>
+</body>
+</html>
