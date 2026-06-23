@@ -15,7 +15,7 @@ python TomBridge.py
 
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-import requests, os, time, threading
+import requests, os, time, threading, json
 from datetime import datetime
 
 # ══════════════════════════════════════════
@@ -307,6 +307,226 @@ def watch_closed_trades():
             print(f"watcher error: {e}")
 
 # ══════════════════════════════════════════
+# AUTONOMOUS TRADING ENGINE
+# Fetches price + runs Tom analysis every 30s
+# ══════════════════════════════════════════
+auto_state = {
+    'last_price':      0,
+    'prev_price':      0,
+    'day_high':        0,
+    'day_low':         999999,
+    'last_signal':     '',
+    'last_signal_time': 0,
+    'enabled':         True,
+    'last_action':     'Starting...',
+    'last_reason':     '',
+}
+SIGNAL_COOLDOWN = 5 * 60  # 5 minutes between same-direction signals
+
+def fetch_gold_price():
+    """Fetch spot XAUUSD price — tries multiple sources"""
+    sources = [
+        # 1. Metals.live spot
+        lambda: requests.get('https://api.metals.live/v1/spot/gold', timeout=5).json(),
+        # 2. Swissquote spot
+        lambda: None,  # handled separately
+        # 3. Yahoo XAUUSD=X spot
+        lambda: requests.get(
+            'https://query1.finance.yahoo.com/v8/finance/chart/XAUUSD%3DX?interval=1m&range=1d',
+            headers={'Accept':'application/json','User-Agent':'Mozilla/5.0'},
+            timeout=5
+        ).json()['chart']['result'][0]['meta'],
+        # 4. Yahoo GC=F futures fallback
+        lambda: requests.get(
+            'https://query1.finance.yahoo.com/v8/finance/chart/GC%3DF?interval=1m&range=1d',
+            headers={'Accept':'application/json','User-Agent':'Mozilla/5.0'},
+            timeout=5
+        ).json()['chart']['result'][0]['meta'],
+    ]
+
+    # Try metals.live
+    try:
+        d = requests.get('https://api.metals.live/v1/spot/gold', timeout=5).json()
+        price = d.get('price') or (d[0].get('price') if isinstance(d, list) else None)
+        if price and price > 100:
+            return float(price), float(price), float(price), 'metals.live'
+    except: pass
+
+    # Try Swissquote
+    try:
+        d = requests.get('https://forex-data-feed.swissquote.com/public-quotes/bboquotes/instrument/XAU/USD', timeout=5).json()
+        sp = next((x for x in d[0]['spreadProfilePrices'] if x['spreadProfile']=='prime'), d[0]['spreadProfilePrices'][0])
+        price = (sp['bid'] + sp['ask']) / 2
+        if price > 100:
+            return float(price), float(price), float(price), 'Swissquote'
+    except: pass
+
+    # Try Yahoo spot
+    try:
+        d = requests.get(
+            'https://query1.finance.yahoo.com/v8/finance/chart/XAUUSD%3DX?interval=1m&range=1d',
+            headers={'Accept':'application/json','User-Agent':'Mozilla/5.0'}, timeout=5
+        ).json()['chart']['result'][0]['meta']
+        return float(d['regularMarketPrice']), float(d.get('regularMarketDayHigh', d['regularMarketPrice'])), float(d.get('regularMarketDayLow', d['regularMarketPrice'])), 'Yahoo Spot'
+    except: pass
+
+    # Try Yahoo futures
+    try:
+        d = requests.get(
+            'https://query1.finance.yahoo.com/v8/finance/chart/GC%3DF?interval=1m&range=1d',
+            headers={'Accept':'application/json','User-Agent':'Mozilla/5.0'}, timeout=5
+        ).json()['chart']['result'][0]['meta']
+        return float(d['regularMarketPrice']), float(d.get('regularMarketDayHigh', d['regularMarketPrice'])), float(d.get('regularMarketDayLow', d['regularMarketPrice'])), 'Yahoo Futures'
+    except: pass
+
+    return None, None, None, None
+
+def get_dubai_hour():
+    """Get current hour in Dubai time (UTC+4)"""
+    import calendar
+    utc_now = datetime.utcnow()
+    dubai_hour = (utc_now.hour + 4) % 24
+    dubai_min  = utc_now.minute
+    return dubai_hour + dubai_min / 60
+
+def tom_analysis(price, prev, high, low):
+    """
+    Same logic as Tom Assistant panel in dashboard.
+    Returns: action, reason, direction (BUY/SELL/None)
+    """
+    if not price or not prev or price <= 0:
+        return 'WAIT', 'No price data', None
+
+    chg      = price - prev
+    pct      = (chg / prev) * 100 if prev else 0
+    rng      = high - low if high and low else 0
+    pct_abs  = abs(pct)
+    is_bull  = chg > 0
+    is_strong = pct_abs > 0.4
+    is_flat   = pct_abs < 0.1
+    is_overbought = rng > 5 and price > high - (rng * 0.1)
+    is_oversold   = rng > 5 and price < low  + (rng * 0.1)
+
+    # Session check (Dubai time UTC+4)
+    h = get_dubai_hour()
+    london_open = 11 <= h < 19
+    ny_open     = h >= 16 or h < 1
+    tokyo_open  = 3  <= h < 12
+    overlap     = london_open and ny_open
+    any_open    = london_open or ny_open or tokyo_open
+    sess_label  = 'London+NY overlap ⚡' if overlap else 'London' if london_open else 'New York' if ny_open else 'Tokyo' if tokyo_open else 'Off-hours'
+
+    # Decision logic — mirrors dashboard JS exactly
+    if not any_open:
+        return 'WAIT', f'All sessions closed ({sess_label}) — low volume', None
+
+    if is_flat:
+        return 'WAIT', f'Price flat ({pct:+.2f}%) — no clear direction — ranging', None
+
+    if is_bull and is_strong and not is_overbought:
+        reason = f'Gold +{pct:.2f}% | Strong bull momentum | {sess_label} | Room to high ${high:.0f}'
+        return 'BUY', reason, 'BUY'
+
+    if is_bull and is_overbought:
+        return 'WAIT', f'Bullish but near day high ${high:.0f} — too risky to chase', None
+
+    if is_bull and not is_strong:
+        return 'WAIT', f'Mild bullish +{pct:.2f}% — wait for stronger momentum', None
+
+    if not is_bull and is_strong and not is_oversold:
+        reason = f'Gold {pct:.2f}% | Strong bear momentum | {sess_label} | Room to low ${low:.0f}'
+        return 'SELL', reason, 'SELL'
+
+    if not is_bull and is_oversold:
+        return 'WAIT', f'Bearish but near day low ${low:.0f} — bounce risk', None
+
+    return 'WAIT', f'Mild move {pct:+.2f}% — no clear setup yet', None
+
+def auto_trading_engine():
+    """Main autonomous trading loop — runs every 30 seconds"""
+    print('🤖 Auto trading engine started')
+    open_price = None
+
+    while True:
+        time.sleep(30)
+        try:
+            if not auto_state['enabled']:
+                continue
+
+            price, high, low, source = fetch_gold_price()
+            if not price:
+                print('⚠️ Price fetch failed — skipping cycle')
+                continue
+
+            # Track day open price (first fetch of the day)
+            now = datetime.utcnow()
+            if open_price is None or now.hour == 0 and now.minute < 1:
+                open_price = price
+
+            prev  = open_price or price
+            day_h = max(auto_state['day_high'], price)
+            day_l = min(auto_state['day_low'],  price) if auto_state['day_low'] < 999999 else price
+            auto_state['day_high'] = day_h
+            auto_state['day_low']  = day_l
+            auto_state['last_price'] = price
+
+            action, reason, direction = tom_analysis(price, prev, day_h, day_l)
+            auto_state['last_action'] = action
+            auto_state['last_reason'] = reason
+
+            print(f'🔍 [{source}] ${price:.2f} | {action} | {reason[:60]}')
+
+            if not direction:
+                continue
+
+            # Cooldown — don't repeat same direction within 5 min
+            now_ts = time.time()
+            same_dir   = direction == auto_state['last_signal']
+            in_cooldown = (now_ts - auto_state['last_signal_time']) < SIGNAL_COOLDOWN
+
+            if same_dir and in_cooldown:
+                remaining = int(SIGNAL_COOLDOWN - (now_ts - auto_state['last_signal_time']))
+                print(f'⏳ Cooldown {remaining}s — skipping duplicate {direction}')
+                continue
+
+            # Fire the trade
+            auto_state['last_signal']      = direction
+            auto_state['last_signal_time'] = now_ts
+
+            print(f'🚀 AUTO FIRE: {direction} @ ${price:.2f}')
+            ok = write_signal(direction, price, f'[AUTO] {reason}')
+            if ok:
+                result = read_result(timeout=10)
+                if result and result['status'] == 'OK':
+                    tg_trade_placed(result, f'[AUTO] {reason}')
+                else:
+                    tg(f'⚠️ <b>AUTO SIGNAL SENT</b> — No MT4 reply\n{direction} @ ${price:.2f}\n{reason}')
+            else:
+                tg(f'❌ Auto trade FAILED — signal file write error\n{direction} @ ${price:.2f}')
+
+        except Exception as e:
+            print(f'Auto engine error: {e}')
+
+# ── AUTO TRADE TOGGLE ENDPOINT ──
+@app.route('/auto/toggle', methods=['POST'])
+def auto_toggle():
+    auto_state['enabled'] = not auto_state['enabled']
+    status = 'ENABLED' if auto_state['enabled'] else 'DISABLED'
+    tg(f'🤖 Auto trading <b>{status}</b> via dashboard')
+    return jsonify({'ok': True, 'enabled': auto_state['enabled'], 'status': status})
+
+@app.route('/auto/status', methods=['GET'])
+def auto_status():
+    return jsonify({
+        'ok':          True,
+        'enabled':     auto_state['enabled'],
+        'last_price':  auto_state['last_price'],
+        'last_action': auto_state['last_action'],
+        'last_reason': auto_state['last_reason'],
+        'last_signal': auto_state['last_signal'],
+    })
+
+# ══════════════════════════════════════════
 # PERIODIC SCHEDULER
 # ══════════════════════════════════════════
 def scheduler():
@@ -424,8 +644,10 @@ if __name__ == "__main__":
         print(f"  ✅ MT4 Files folder found")
 
     # Start background threads
-    threading.Thread(target=scheduler,           daemon=True).start()
-    threading.Thread(target=watch_closed_trades, daemon=True).start()
+    threading.Thread(target=scheduler,            daemon=True).start()
+    threading.Thread(target=watch_closed_trades,  daemon=True).start()
+    threading.Thread(target=auto_trading_engine,  daemon=True).start()
+    print('🤖 Autonomous trading engine: ACTIVE (every 30s)')
 
     tg(
         f"🌉 <b>TomBridge STARTED</b>\n"
